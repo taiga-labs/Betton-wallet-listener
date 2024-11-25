@@ -24,10 +24,13 @@ def get_transaction_info(tx_hash: str) -> typing.Union[dict, AbstractErrorMessag
             continue
 
 
-def get_source_address(transaction_info: dict) -> typing.Union[str, AbstractErrorMessage]:
+def get_source_address(transaction_info: dict, jetton_type: str = None) -> typing.Union[str, AbstractErrorMessage]:
 
     try:
-        return transaction_info["in_msg"]["source"]["address"]
+        try:
+            return transaction_info["out_msgs"][0]['source']["address"]
+        except:
+            return transaction_info["in_msg"]["source"]["address"]
     except KeyError as e:
         print(f"Key error: {e}")
         return AbstractErrorMessage(message="Error: Unable to get source address")
@@ -58,8 +61,8 @@ def get_transfer_amount(transaction_info: dict, jetton_type: str, decimals: int 
 
     try:
         if jetton_type == "TON":
-            value = transaction_info["in_msg"]["value"]
-            return float(value) / (10 ** decimals)
+            amount = transaction_info["out_msgs"][0]["value"]
+            return float(amount / (10 ** decimals))
         elif jetton_type == "JETTON":
             decoded_body = transaction_info["in_msg"].get("decoded_body", {})
             amount = decoded_body.get("amount")
@@ -123,7 +126,7 @@ def get_transfer_payload(transaction_info: dict, jetton_type: str) -> typing.Uni
 
     try:
         if jetton_type != "TON": payload_text = transaction_info["in_msg"]["decoded_body"]["forward_payload"]["value"]["value"]["text"]
-        else: payload_text = transaction_info["in_msg"]["decoded_body"]["text"]
+        else: payload_text = transaction_info["out_msgs"][0]["decoded_body"]["text"]
 
         return str(payload_text) or ""
     except KeyError as e:
