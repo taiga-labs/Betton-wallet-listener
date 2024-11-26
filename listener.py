@@ -29,11 +29,8 @@ async def send_response(response: NewTransferResponse):
 
 async def handle_message(event: TransactionEventData = None):
     
-    # transaction_hash = event.tx_hash
-    transaction_hash = "d268d13a2708652095b4a9fe4f3d6433b290e52d1528d18c8a2e32eaced7cc1c"
-    transaction_info = get_transaction_info(tx_hash=transaction_hash)
-
-    print(transaction_info)
+    transaction_hash = event.tx_hash
+    transaction_info = get_transaction_info(tx_hash = transaction_hash)
 
     if isinstance(transaction_hash, AbstractErrorMessage): transaction_info = get_transaction_info(tx_hash = transaction_hash)
 
@@ -71,7 +68,7 @@ async def handle_message(event: TransactionEventData = None):
         )
 
         print(response)
-        
+
         await send_response(response = {
             "type": response.type,
             "symbol": response.symbol,
@@ -87,7 +84,7 @@ async def main():
     while True:
         try:
             tonapi = AsyncTonapi(api_key=os.getenv("YOUR_API_KEY"))
-            accounts = ["UQA5o0JmVFBAnlXdS7kiMTZwLEvVHRaCoqWgrTSZDvc6EEU0"]
+            accounts = ["UQA5o0JmVFBAnlXdS7kiMTZwLEvVHRaCoqWgrTSZDvc6EEU0", "UQB4M_AbtopojI-EqoN9dfNZsSfFLcHZmYJQXP2_BIlazvxr"]
 
             await tonapi.websocket.subscribe_to_transactions(accounts=accounts, handler=handle_message)
     
