@@ -1,16 +1,25 @@
 import asyncio
 import aiohttp
-import requests
-
+import logging
 from getters import *
 from schemas import *
 from pytoniq import Address
 from pytonapi import AsyncTonapi
-from pytonapi.schema.events import TransactionEventData
 from pytonapi.exceptions import TONAPIError
+from pytonapi.schema.events import TransactionEventData
 
-ADMIN_WALLET_ADDRESS = ""
-ADMIN_JETTON_WALLET_ADDRESS = ""
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.StreamHandler()
+    ]
+)
+
+
+TON_API_KEY = "3751b902af2e0fccb69c5c279e23e0ed8dadadcc10a441e3fc3b43172595f4ea"
+ADMIN_WALLET_ADDRESS = Address("UQB4M_AbtopojI-EqoN9dfNZsSfFLcHZmYJQXP2_BIlazvxr").to_str(is_user_friendly=False)
 
 
 async def send_response(response: NewTransferResponse):
@@ -22,77 +31,88 @@ async def send_response(response: NewTransferResponse):
             ) as resp:
                 if resp.status != 200:
                     text = await resp.text()
-                    print(f"Failed to send response: {resp.status}, {text}")
+                    logging.error(f"Failed to send response: {resp.status}, {text}")
     except Exception as e:
-        print(f"Error while sending response: {e}")
+        logging.error(f"Error while sending response: {e}")
 
 
 async def handle_message(event: TransactionEventData = None):
-    
-    transaction_hash = event.tx_hash
-    transaction_info = get_transaction_info(tx_hash = transaction_hash)
+    try:
+        transaction_hash = event.tx_hash
+        transaction_info = get_transaction_info(tx_hash=transaction_hash)
 
-    if isinstance(transaction_hash, AbstractErrorMessage): transaction_info = get_transaction_info(tx_hash = transaction_hash)
+        if isinstance(transaction_hash, AbstractErrorMessage):
+            transaction_info = get_transaction_info(tx_hash=transaction_hash)
 
-    source_address = get_source_address(transaction_info)
+        source_address = get_source_address(transaction_info)
 
-    print(source_address)
+        logging.info(f"Source address: {source_address}")
 
-    if source_address != ADMIN_WALLET_ADDRESS or source_address != ADMIN_JETTON_WALLET_ADDRESS: 
+        if source_address != ADMIN_WALLET_ADDRESS:
 
-        jetton_wallet_flag = is_jetton_wallet(address=source_address)
+            jetton_wallet_flag = is_jetton_wallet(address=source_address)
 
-        if jetton_wallet_flag:
-            transfer_type = "JETTON"
-            jetton_master = get_jetton_master(jetton_wallet_address = source_address)
-            jetton_symbol = get_jetton_symbol(jetton_master = jetton_master)
-            jetton_decimals = get_jetton_decimals(jetton_master = jetton_master)
-            amount = get_transfer_amount(transaction_info, jetton_type = transfer_type, decimals = jetton_decimals)
+            if jetton_wallet_flag:
+                jetton_wallet_owner = get_jetton_wallet_owner(jetton_wallet_address=source_address)
 
-        else:
-            transfer_type = "TON"
-            jetton_symbol = None
-            jetton_master = None
-            amount = get_transfer_amount(transaction_info, jetton_type =  transfer_type, decimals = 9)
+                if jetton_wallet_owner == ADMIN_WALLET_ADDRESS:
+                    logging.info("Transfer from admin wallet")
+                    return
 
-        payload = get_transfer_payload(transaction_info, jetton_type = transfer_type)
+                transfer_type = "JETTON"
+                jetton_master = get_jetton_master(jetton_wallet_address=source_address)
+                jetton_symbol = get_jetton_symbol(jetton_master=jetton_master)
+                jetton_decimals = get_jetton_decimals(jetton_master=jetton_master)
+                amount = get_transfer_amount(transaction_info, jetton_type=transfer_type, decimals=jetton_decimals)
 
-        response = NewTransferResponse(
-            type=transfer_type,
-            symbol=jetton_symbol or "null",
-            sender=source_address,
-            amount=amount,
-            payload_text=payload,
-            jetton_master_address=jetton_master,
-            hash=transaction_hash,
-        )
+            else:
+                transfer_type = "TON"
+                jetton_symbol = None
+                jetton_master = None
+                amount = get_transfer_amount(transaction_info, jetton_type=transfer_type, decimals=9)
 
-        print(response)
+            payload = get_transfer_payload(transaction_info, jetton_type=transfer_type)
 
-        await send_response(response = {
-            "type": response.type,
-            "symbol": response.symbol,
-            "sender": response.sender,
-            "amount": response.amount,
-            "payload_text": response.payload_text,
-            "jetton_master_address": response.hash
-            }
-        )
+            response = NewTransferResponse(
+                type=transfer_type,
+                symbol=jetton_symbol or "null",
+                sender=source_address,
+                amount=amount,
+                payload_text=payload,
+                jetton_master_address=jetton_master,
+                hash=transaction_hash,
+            )
+
+            logging.info(f"Response: {response}")
+
+            await send_response(response={
+                "type": response.type,
+                "symbol": response.symbol,
+                "sender": response.sender,
+                "amount": response.amount,
+                "payload_text": response.payload_text,
+                "jetton_master_address": response.hash
+            })
+    except Exception as e:
+        logging.error(f"Error handling message: {e}")
 
 
 async def main():
     while True:
         try:
-            tonapi = AsyncTonapi(api_key=os.getenv("YOUR_API_KEY"))
-            accounts = ["UQA5o0JmVFBAnlXdS7kiMTZwLEvVHRaCoqWgrTSZDvc6EEU0", "UQB4M_AbtopojI-EqoN9dfNZsSfFLcHZmYJQXP2_BIlazvxr"]
+            tonapi = AsyncTonapi(api_key=TON_API_KEY)
+            accounts = ["UQB4M_AbtopojI-EqoN9dfNZsSfFLcHZmYJQXP2_BIlazvxr"]
 
             await tonapi.websocket.subscribe_to_transactions(accounts=accounts, handler=handle_message)
-    
-            while True: await asyncio.sleep(1)
+
+            while True:
+                await asyncio.sleep(1)
 
         except Exception as ex:
-            print(f"Произошла ошибка: {ex}")
-            print("Перезапуск программы через 5 секунд...")
+            logging.error(f"An error occurred: {ex}")
+            logging.info("Restarting the program in 5 seconds...")
+            await asyncio.sleep(5)
+
 
 if __name__ == '__main__':
     asyncio.run(main())

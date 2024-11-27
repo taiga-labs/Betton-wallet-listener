@@ -156,3 +156,27 @@ def get_jetton_decimals(jetton_master: str) -> typing.Union[int, AbstractErrorMe
             if attempt == 2:
                 return AbstractErrorMessage(message="Error: Unable to fetch jetton decimals")
             continue
+
+
+def get_jetton_wallet_owner(jetton_wallet_address: str) -> typing.Union[str, AbstractErrorMessage]:
+
+    url = f"{BASE_URL}blockchain/accounts/{jetton_wallet_address}/methods/get_wallet_data"
+    headers = {'Accept': 'application/json'}
+    timeout = 30
+
+    for attempt in range(3):
+        try:
+            print(f"Fetching jetton master (Attempt {attempt + 1}): {url}")
+            response = requests.get(url, headers=headers, timeout=timeout)
+            response.raise_for_status()
+            result = response.json()
+            owner_address = result.get("decoded", {}).get("owner")
+            if owner_address:
+                return owner_address
+            else:
+                return AbstractErrorMessage(message="Error: Owner address is None")
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching owner address: {e}")
+            if attempt == 2:
+                return AbstractErrorMessage(message="Error: Unable to fetch owner address")
+            continue
