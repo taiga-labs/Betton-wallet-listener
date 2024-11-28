@@ -37,7 +37,7 @@ async def send_response(response: NewTransferResponse):
         logging.error(f"Error while sending response: {e}")
 
 
-async def handle_message(event: TransactionEventData = None):
+async def handle_message(event: TransactionEventData):
 
     try:
         transaction_hash = event.tx_hash
@@ -48,7 +48,7 @@ async def handle_message(event: TransactionEventData = None):
 
         source_address = get_source_address(transaction_info)
 
-        logging.info(f"Source address: {source_address}")
+        logging.info(f"Source address: {source_address} | Admin wallet address {ADMIN_WALLET_ADDRESS}")
 
         if source_address != ADMIN_WALLET_ADDRESS:
 
@@ -98,6 +98,9 @@ async def handle_message(event: TransactionEventData = None):
                 "jetton_master_address": response.hash
                 }
             )
+        else:
+            logging.info("Transfer from admin wallet")
+            return
     except Exception as e:
         logging.error(f"Error handling message: {e}")
 
@@ -108,7 +111,7 @@ async def main():
         try:
             tonapi = AsyncTonapi(api_key = TON_API_KEY)
             accounts = ["UQB4M_AbtopojI-EqoN9dfNZsSfFLcHZmYJQXP2_BIlazvxr"]
-
+            logging.info("Start listening...")
             await tonapi.websocket.subscribe_to_transactions(accounts = accounts, handler = handle_message)
 
             while True:
@@ -118,7 +121,7 @@ async def main():
             logging.error(f"An error occurred: {ex}")
             logging.info("Restarting the program in 5 seconds...")
             await asyncio.sleep(5)
-
+            
 
 if __name__ == '__main__':
     asyncio.run(main())

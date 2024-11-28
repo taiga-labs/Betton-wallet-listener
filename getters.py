@@ -1,7 +1,9 @@
 import os
+import time
 import typing
-import requests
 import logging
+import requests
+
 from schemas import AbstractErrorMessage
 
 
@@ -21,7 +23,8 @@ def get_transaction_info(tx_hash: str) -> typing.Union[dict, AbstractErrorMessag
     headers = {'Accept': 'application/json'}
     timeout = 30
 
-    for attempt in range(3):  
+    for attempt in range(3): 
+        time.sleep(2)
         try:
             logging.info(f"Attempting to fetch transaction info (Attempt {attempt + 1}): {url}")
             response = requests.get(url, headers = headers, timeout = timeout)
@@ -32,6 +35,7 @@ def get_transaction_info(tx_hash: str) -> typing.Union[dict, AbstractErrorMessag
             if attempt == 2:
                 return AbstractErrorMessage(message = "Error: Unable to fetch transaction info")
             continue
+        
 
 
 def get_source_address(transaction_info: dict, jetton_type: str = None) -> typing.Union[str, AbstractErrorMessage]:
@@ -58,8 +62,10 @@ def is_jetton_wallet(address: str) -> typing.Union[bool, AbstractErrorMessage]:
             response = requests.get(url, headers=headers, timeout=timeout)
             response.raise_for_status()
             result = response.json()
-            interfaces = result.get("interfaces", [])
-            return "jetton_wallet" in interfaces
+            interfaces = result["interfaces"][0]
+
+            if interfaces == "jetton_wallet": return True
+            return False
         except requests.exceptions.RequestException as e:
             logging.error(f"Error checking jetton wallet: {e}")
             if attempt == 2:
@@ -143,7 +149,7 @@ def get_transfer_payload(transaction_info: dict, jetton_type: str) -> typing.Uni
         return str(payload_text) or ""
     except KeyError as e:
         logging.error(f"Key error when accessing transfer payload: {e}")
-        return AbstractErrorMessage(message = "Error: Unable to get transfer payload")
+        return ""
 
 
 def get_jetton_decimals(jetton_master: str) -> typing.Union[int, AbstractErrorMessage]:
