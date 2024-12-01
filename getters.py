@@ -1,4 +1,3 @@
-import os
 import time
 import typing
 import logging
@@ -37,7 +36,6 @@ def get_transaction_info(tx_hash: str) -> typing.Union[dict, AbstractErrorMessag
             continue
         
 
-
 def get_source_address(transaction_info: dict, jetton_type: str = None) -> typing.Union[str, AbstractErrorMessage]:
 
     try:
@@ -64,7 +62,7 @@ def is_jetton_wallet(address: str) -> typing.Union[bool, AbstractErrorMessage]:
             result = response.json()
             interfaces = result["interfaces"][0]
 
-            if interfaces == "jetton_wallet": return True
+            if interfaces == "jetton_wallet" or interfaces == "jetton_wallet_v2": return True
             return False
         except requests.exceptions.RequestException as e:
             logging.error(f"Error checking jetton wallet: {e}")
@@ -74,10 +72,12 @@ def is_jetton_wallet(address: str) -> typing.Union[bool, AbstractErrorMessage]:
 
 
 def get_transfer_amount(transaction_info: dict, jetton_type: str, decimals: int = 9) -> typing.Union[float, AbstractErrorMessage]:
+    
+    logging.info(f"Fetching transfer amount...")
 
     try:
         if jetton_type == "TON":
-            amount = transaction_info["out_msgs"][0]["value"]
+            amount = transaction_info["in_msg"]["value"]
             return float(amount / (10 ** decimals))
         elif jetton_type == "JETTON":
             decoded_body = transaction_info["in_msg"].get("decoded_body", {})
@@ -140,12 +140,20 @@ def get_jetton_symbol(jetton_master: str) -> typing.Union[str, AbstractErrorMess
 
 def get_transfer_payload(transaction_info: dict, jetton_type: str) -> typing.Union[str, AbstractErrorMessage]:
 
+    logging.info(f"Fetching transfer payload...")
+
     try:
         if jetton_type != "TON":
+            print("hui")
             payload_text = transaction_info["in_msg"]["decoded_body"]["forward_payload"]["value"]["value"]["text"]
         else:
-            payload_text = transaction_info["out_msgs"][0]["decoded_body"]["text"]
-
+            try: 
+                print("hui")
+                payload_text = transaction_info["in_msg"]["decoded_body"]["text"]
+            except:
+                print("hui")
+                payload_text = transaction_info["out_msgs"][0]["decoded_body"]["text"]
+        
         return str(payload_text) or ""
     except KeyError as e:
         logging.error(f"Key error when accessing transfer payload: {e}")

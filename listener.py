@@ -22,7 +22,7 @@ TON_API_KEY = "3751b902af2e0fccb69c5c279e23e0ed8dadadcc10a441e3fc3b43172595f4ea"
 ADMIN_WALLET_ADDRESS = Address("UQB4M_AbtopojI-EqoN9dfNZsSfFLcHZmYJQXP2_BIlazvxr").to_str(is_user_friendly = False)
 
 
-async def send_response(response: NewTransferResponse):
+async def send_response(response: dict):
 
     try:
         async with aiohttp.ClientSession() as session:
@@ -30,15 +30,17 @@ async def send_response(response: NewTransferResponse):
                 "https://xoma.monster/test/dep.php",
                 json = response
             ) as resp:
+                logging.info(f"Sending response: {response}")
                 if resp.status != 200:
                     text = await resp.text()
                     logging.error(f"Failed to send response: {resp.status}, {text}")
+                logging.info(f"response: {response}")
     except Exception as e:
         logging.error(f"Error while sending response: {e}")
 
 
 async def handle_message(event: TransactionEventData):
-
+    print("я тут")
     try:
         transaction_hash = event.tx_hash
         transaction_info = get_transaction_info(tx_hash = transaction_hash)
@@ -95,7 +97,8 @@ async def handle_message(event: TransactionEventData):
                 "sender": response.sender,
                 "amount": response.amount,
                 "payload_text": response.payload_text,
-                "jetton_master_address": response.hash
+                "jetton_master_address": response.jetton_master_address,
+                "hash": response.hash
                 }
             )
         else:
@@ -113,10 +116,6 @@ async def main():
             accounts = ["UQB4M_AbtopojI-EqoN9dfNZsSfFLcHZmYJQXP2_BIlazvxr"]
             logging.info("Start listening...")
             await tonapi.websocket.subscribe_to_transactions(accounts = accounts, handler = handle_message)
-
-            while True:
-                await asyncio.sleep(1)
-
         except Exception as ex:
             logging.error(f"An error occurred: {ex}")
             logging.info("Restarting the program in 5 seconds...")
