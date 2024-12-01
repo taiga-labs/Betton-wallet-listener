@@ -24,11 +24,14 @@ ADMIN_WALLET_ADDRESS = Address("UQB4M_AbtopojI-EqoN9dfNZsSfFLcHZmYJQXP2_BIlazvxr
 
 async def send_response(response: dict):
 
+    header = {"Content-Type": "application/x-www-form-urlencoded"}
+
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(
                 "https://xoma.monster/test/dep.php",
-                json = response
+                json = response,
+                headers = header
             ) as resp:
                 logging.info(f"Sending response: {response}")
                 if resp.status != 200:
@@ -94,10 +97,10 @@ async def handle_message(event: TransactionEventData):
             await send_response(response = {
                 "type": response.type,
                 "symbol": response.symbol,
-                "sender": response.sender,
+                "sender": Address(response.sender).to_str(),
                 "amount": response.amount,
                 "payload_text": response.payload_text,
-                "jetton_master_address": response.jetton_master_address,
+                "jetton_master_address": Address(response.jetton_master_address).to_str(),
                 "hash": response.hash
                 }
             )
@@ -116,11 +119,12 @@ async def main():
             accounts = ["UQB4M_AbtopojI-EqoN9dfNZsSfFLcHZmYJQXP2_BIlazvxr"]
             logging.info("Start listening...")
             await tonapi.websocket.subscribe_to_transactions(accounts = accounts, handler = handle_message)
+            break
         except Exception as ex:
             logging.error(f"An error occurred: {ex}")
             logging.info("Restarting the program in 5 seconds...")
             await asyncio.sleep(5)
-            
+
 
 if __name__ == '__main__':
     asyncio.run(main())

@@ -144,16 +144,12 @@ def get_transfer_payload(transaction_info: dict, jetton_type: str) -> typing.Uni
 
     try:
         if jetton_type != "TON":
-            print("hui")
             payload_text = transaction_info["in_msg"]["decoded_body"]["forward_payload"]["value"]["value"]["text"]
         else:
             try: 
-                print("hui")
                 payload_text = transaction_info["in_msg"]["decoded_body"]["text"]
             except:
-                print("hui")
                 payload_text = transaction_info["out_msgs"][0]["decoded_body"]["text"]
-        
         return str(payload_text) or ""
     except KeyError as e:
         logging.error(f"Key error when accessing transfer payload: {e}")
