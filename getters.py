@@ -15,6 +15,7 @@ logging.basicConfig(
 )
 
 BASE_URL = "https://tonapi.io/v2/"
+JETTON_WALLET_TYPES = ["jetton_wallet", "jetton_wallet_v1", "jetton_wallet_v2"]
 
 def get_transaction_info(tx_hash: str) -> typing.Union[dict, AbstractErrorMessage]:
 
@@ -62,8 +63,9 @@ def is_jetton_wallet(address: str) -> typing.Union[bool, AbstractErrorMessage]:
             result = response.json()
             interfaces = result["interfaces"][0]
 
-            if interfaces == "jetton_wallet" or interfaces == "jetton_wallet_v2": return True
-            return False
+            if interfaces in JETTON_WALLET_TYPES: return "JETTON_WALLET"
+            if interfaces == "nft_item": return "Nft"
+            return "TON"
         except requests.exceptions.RequestException as e:
             logging.error(f"Error checking jetton wallet: {e}")
             if attempt == 2:
